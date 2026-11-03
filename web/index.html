@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG-клиника</title>
+<style>
+:root {
+  --bg: #F4F6F8; --panel: #FFFFFF; --ink: #17212B; --muted: #5E6B78; --line: #D9DEE4;
+  --teal: #0E7C7B; --teal-soft: #E0F1F0; --red: #C2362B; --red-soft: #FBE6E4;
+  --amber: #B7740B; --amber-soft: #FCF0DA; --blue: #2459C9; --blue-soft: #E3EBFB;
+  --violet: #6E3FB8; --violet-soft: #EEE6FA; --green: #23855B; --green-soft: #E1F3EA;
+  --code: #1E2730; --code-ink: #E6EDF3;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; background: var(--ink); color: #fff; flex-wrap: wrap; }
+header h1 { font-size: 20px; margin: 0; font-weight: 700; }
+header .sub { color: #AFC0CF; font-size: 14px; }
+header .mode { margin-left: auto; font-size: 13px; padding: 4px 10px; border-radius: 99px; background: #2C3A47; }
+header .mode.live { background: var(--teal); }
+.layout { display: grid; grid-template-columns: 250px 1fr; min-height: calc(100vh - 56px); }
+nav { background: var(--panel); border-right: 1px solid var(--line); padding: 16px 12px; }
+nav button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 10px 12px; border-radius: 10px; cursor: pointer; font: inherit; color: var(--ink); margin-bottom: 4px; }
+nav button small { display: block; color: var(--muted); font-size: 13px; }
+nav button.active { background: var(--teal-soft); }
+nav .sep { border-top: 1px solid var(--line); margin: 12px 4px; }
+main { padding: 24px 32px 90px; max-width: 1180px; }
+.stepper { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
+.stepper button { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 6px 14px; font: inherit; font-size: 14px; cursor: pointer; color: var(--muted); }
+.stepper button.done { color: var(--ink); }
+.stepper button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+h2 { font-size: 28px; margin: 0 0 6px; }
+h3 { font-size: 19px; margin: 26px 0 10px; }
+.lead { color: var(--muted); margin: 0 0 18px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; }
+.q { font-size: 21px; font-weight: 600; }
+.answer { font-size: 18px; white-space: pre-wrap; }
+.label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+.chunk { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 12px; overflow: hidden; }
+.chunk .meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+.chunk .meta b { color: var(--ink); }
+.chunk pre { margin: 0; padding: 14px 16px; white-space: pre-wrap; font: 15px/1.5 ui-monospace, Menlo, Consolas, monospace; }
+.chunk.gold { border-color: var(--green); box-shadow: 0 0 0 2px var(--green-soft); }
+.tag { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 13px; font-weight: 600; background: var(--bg); color: var(--muted); }
+.tag.rank { background: var(--ink); color: #fff; }
+.tag.gold { background: var(--green); color: #fff; }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.metric { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.metric .v { font-size: 52px; font-weight: 700; line-height: 1.1; }
+.metric .n { font-weight: 600; }
+.metric .h { color: var(--muted); font-size: 14px; }
+.metric .delta { font-size: 15px; color: var(--muted); }
+.good { color: var(--green); } .mid { color: var(--amber); } .bad { color: var(--red); }
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; margin-bottom: 10px; }
+details summary { cursor: pointer; font-weight: 600; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+td, th { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.code { background: var(--code); color: var(--code-ink); border-radius: 12px; padding: 14px 16px; white-space: pre-wrap; font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace; }
+.badge { display: inline-block; padding: 5px 14px; border-radius: 99px; font-weight: 700; font-size: 15px; }
+.st-chunking { background: var(--amber-soft); color: var(--amber); }
+.st-retrieval { background: var(--blue-soft); color: var(--blue); }
+.st-generation { background: var(--violet-soft); color: var(--violet); }
+ul.ev { padding-left: 20px; margin: 6px 0; } ul.ev li { margin-bottom: 6px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn { border: 0; background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 10px; font: inherit; font-size: 15px; cursor: pointer; }
+.btn.ghost { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+.btn:disabled { opacity: .5; cursor: default; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; color: var(--muted); }
+.seg button.on { background: var(--teal); color: #fff; }
+.seg button:disabled { opacity: .45; cursor: default; }
+.nextbar { position: fixed; bottom: 0; left: 250px; right: 0; padding: 12px 32px; background: rgba(244,246,248,.96); border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: center; }
+.nextbar .hint { color: var(--muted); font-size: 13px; margin-left: auto; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.err { background: var(--red-soft); color: var(--red); padding: 10px 14px; border-radius: 10px; margin: 10px 0; }
+.lab label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+.lab select, .lab textarea, .lab input { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.lab .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 12px 0; }
+.small { font-size: 14px; color: var(--muted); }
+.kbnav button { display:block; width:100%; text-align:left; border:0; background:none; padding:8px 10px; border-radius:10px; cursor:pointer; font:inherit; font-size:15px; color:var(--ink); }
+.kbnav button small { display:block; color:var(--muted); font-size:12px; }
+.kbnav button.active { background: var(--teal-soft); }
+body.shot nav, body.shot .nextbar, body.shot .seg, body.shot [data-run], body.shot .stepper, body.shot #runerr { display: none !important; }
+body.shot .layout { grid-template-columns: 1fr; min-height: 0; } body.shot main { padding: 20px 28px 28px; max-width: none; }
+body.shot .row:has(.seg) { display: none; }
+@media (max-width: 860px) {
+  .kbgrid { grid-template-columns: 1fr !important; }
+  .layout { grid-template-columns: 1fr; } nav { border-right: 0; border-bottom: 1px solid var(--line); }
+  .metrics, .two, .lab .grid { grid-template-columns: 1fr; } main { padding: 16px 16px 90px; } .nextbar { left: 0; padding: 10px 16px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>RAG-клиника</h1><span class="sub">диагностика отказов RAG · база знаний маркетплейса «Полка»</span>
+  <span class="mode" id="mode">загрузка…</span>
+</header>
+<div class="layout">
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+<div class="nextbar" id="nextbar"></div>
+<script>
+const STAGES = ["Жалоба", "Чанки", "Метрики", "Контрольный случай", "Промпт и конфигурация", "Диагноз", "Лечение"];
+const STAGE_NAMES = { chunking: "Chunking failure", retrieval: "Retrieval failure", generation: "Generation failure" };
+const CFG_LABELS = {
+  chunking: ["Чанкинг", { structural: "по разделам документа", fixed: "окно фиксированной длины" }],
+  retrieval: ["Поиск", { dense: "dense (эмбеддинги)", hybrid: "hybrid (эмбеддинги + BM25, RRF)" }],
+  query_transform: ["Трансформация запроса", { none: "нет", hyde: "HyDE", fusion: "RAG-Fusion", stepback: "step-back" }],
+  metadata_filter: ["Фильтр по метаданным", { true: "только status: actual", false: "нет — ищем по всем версиям" }],
+  k: ["top-k", null],
+  prompt: ["Промпт", { grounded: "строго по фрагментам", loose: "«опирайся на свои знания»", custom: "свой промпт" }],
+  temperature: ["Температура", null],
+};
+const S = { live: false, cases: [], view: "zero", stage: 0, src: {}, lab: null };
+let bindVariant = "faulty";
+
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const cls = (v) => v == null ? "" : v >= 0.8 ? "good" : v >= 0.55 ? "mid" : "bad";
+const fmt = (v) => v == null ? "—" : Number(v).toFixed(2);
+
+async function load() {
+  const d = await (await fetch("/api/state")).json();
+  Object.assign(S, { live: d.live, cases: d.cases, models: d.models, defaults: d.defaults, prompts: d.prompts });
+  $("#mode").textContent = S.live ? `живой режим · ${d.models.generation}` : "офлайн · сохранённые прогоны";
+  $("#mode").classList.toggle("live", S.live);
+  // адрес вида #A/3 открывает пациента A на шаге 3; ?shot — режим для скриншотов
+  const [v, st] = decodeURIComponent(location.hash.slice(1)).split("/");
+  if (v && (caseOf(v) || v === "lab" || v === "kb")) { S.view = v; S.stage = Math.max(0, Math.min(6, (+st || 1) - 1)); }
+  if (new URLSearchParams(location.search).has("shot")) document.body.classList.add("shot");
+  render();
+}
+const caseOf = (id) => S.cases.find((c) => c.patient.id === id);
+function run(c, variant) {
+  const useLive = S.src[c.patient.id + variant] === "live" && c.live[variant];
+  return useLive ? c.live[variant] : c.runs[variant];
+}
+
+function renderNav() {
+  const item = (c) => `<button data-v="${c.patient.id}" class="${S.view === c.patient.id ? "active" : ""}">
+    ${esc(c.patient.code)} · ${esc(c.patient.name)}<small>${c.patient.role === "demo" ? "разбор вместе" : "командный кейс"}</small></button>`;
+  $("#nav").innerHTML = item(S.cases[0]) + '<div class="sep"></div>' + S.cases.slice(1).map(item).join("") +
+    `<div class="sep"></div><button data-v="lab" class="${S.view === "lab" ? "active" : ""}">Лаборатория<small>свой вопрос, промпт и настройки</small></button>
+    <button data-v="kb" class="${S.view === "kb" ? "active" : ""}">База знаний<small>документы и чанки</small></button>`;
+  $("#nav").querySelectorAll("button").forEach((b) => b.onclick = () => { S.view = b.dataset.v; S.stage = 0; render(); });
+}
+
+function chunkHTML(c, hits) {
+  const hit = hits && hits[c.rank - 1];
+  const where = c.section ? `раздел «${esc(c.section)}»` : `символы ${c.start}–${c.end}`;
+  const dates = c.valid_to ? `${c.valid_from} → ${c.valid_to}` : `с ${c.valid_from}`;
+  return `<div class="chunk ${hit ? "gold" : ""}"><div class="meta">
+    <span class="tag rank">#${c.rank}</span><span>score <b>${c.score}</b></span>
+    <span><b>${esc(c.file)}</b> · ${where}</span><span>v${esc(c.version)} · ${dates}</span>
+    <span class="tag">status: ${esc(c.status)}</span>
+    ${hit ? '<span class="tag gold">эталонный факт</span>' : ""}</div><pre>${esc(c.text)}</pre></div>`;
+}
+
+function metricsHTML(m, prev) {
+  const tile = (key, name, hint) => {
+    const v = m[key];
+    const delta = prev ? `<div class="delta">было ${fmt(prev[key])}</div>` : "";
+    return `<div class="metric"><div class="n">${name}</div><div class="v ${cls(v)}">${fmt(v)}</div><div class="h">${hint}</div>${delta}</div>`;
+  };
+  return `<div class="metrics">
+    ${tile("precision_at_k", "precision@k", "доля найденных чанков, полезных для ответа (LLM-судья, без эталона)")}
+    ${tile("faithfulness", "faithfulness", "доля утверждений ответа, подтверждённых чанками")}
+    ${tile("answer_relevance", "answer relevance", "насколько ответ отвечает на заданный вопрос")}</div>`;
+}
+
+function metricDetails(m) {
+  const d = m.details || {};
+  const prec = (d.precision || []).map((v) => `<tr><td>#${v.id}</td><td>${+v.relevant ? "✓ полезен" : "✗ нет"}</td><td>${esc(v.reason || "")}</td></tr>`).join("");
+  const faith = (d.faithfulness || []).map((v) => `<tr><td>${+v.supported ? "✓" : "✗"}</td><td>${esc(v.statement)}</td><td>${esc(v.reason || "")}</td></tr>`).join("");
+  const rel = d.relevance || {};
+  return `<details><summary>precision@k — вердикты судьи по каждому чанку</summary><table><tr><th>чанк</th><th>вердикт</th><th>почему</th></tr>${prec}</table></details>
+  <details><summary>faithfulness — утверждения ответа и их проверка</summary><table><tr><th></th><th>утверждение</th><th>комментарий</th></tr>${faith || '<tr><td colspan="3">утверждений нет</td></tr>'}</table></details>
+  <details><summary>answer relevance — вопросы, восстановленные по ответу</summary>
+    <ul class="ev">${(rel.generated_questions || []).map((q) => `<li>${esc(q)}</li>`).join("")}</ul>
+    <div class="small">Метрика — средняя косинусная близость этих вопросов к исходному. Уклончивый ответ обнуляет метрику; здесь: ${rel.noncommittal ? "уклончивый" : "не уклончивый"}.</div></details>`;
+}
+
+function srcSwitch(c, variant) {
+  bindVariant = variant;
+  const hasLive = !!c.live[variant];
+  const cur = S.src[c.patient.id + variant] === "live" && hasLive ? "live" : "saved";
+  const r = run(c, variant);
+  return `<div class="row" style="margin-bottom:14px"><span class="seg">
+    <button data-src="saved" class="${cur === "saved" ? "on" : ""}">эталонный прогон</button>
+    <button data-src="live" class="${cur === "live" ? "on" : ""}" ${hasLive ? "" : "disabled"}>живой прогон</button></span>
+    ${S.live ? `<button class="btn ghost" data-run="${variant}">Прогнать через GigaChat</button>` : ""}
+    <span class="small">${r.source === "live" ? "GigaChat · " + esc(r.models.generation) + " · " + esc(r.created) : "сохранённый прогон"}</span></div><div id="runerr"></div>`;
+}
+function bindSrc(c) {
+  const variant = bindVariant;
+  document.querySelectorAll("[data-src]").forEach((b) => b.onclick = () => { S.src[c.patient.id + variant] = b.dataset.src; render(); });
+  document.querySelectorAll("[data-run]").forEach((b) => b.onclick = async () => {
+    b.disabled = true; b.textContent = "Идёт прогон… (20–60 с)";
+    const r = await fetch("/api/run", { method: "POST", body: JSON.stringify({ patient: c.patient.id, variant }) });
+    const d = await r.json();
+    if (!r.ok) { $("#runerr").innerHTML = `<div class="err">${esc(d.error)}</div>`; b.disabled = false; b.textContent = "Прогнать через GigaChat"; return; }
+    c.live[variant] = d; S.src[c.patient.id + variant] = "live"; render();
+  });
+}
+
+function cfgTable(cfg, before) {
+  return `<table>${Object.entries(CFG_LABELS).map(([k, [name, map]]) => {
+    const show = (v) => map ? (map[String(v)] ?? v) : v;
+    const changed = before && String(before[k]) !== String(cfg[k]);
+    return `<tr><th style="width:240px">${name}</th><td>${changed ? "<b>" + esc(show(cfg[k])) + "</b> <span class='small'>(было: " + esc(show(before[k])) + ")</span>" : esc(show(cfg[k]))}</td></tr>`;
+  }).join("")}</table>`;
+}
+
+function transformHTML(t) {
+  if (!t || t.type === "none") return "";
+  if (t.type === "hyde") return `<h3>HyDE: гипотетический фрагмент, по которому шёл поиск</h3><div class="code">${esc(t.hypothetical_document)}</div>`;
+  if (t.type === "fusion") return `<h3>RAG-Fusion: подзапросы</h3><div class="code">${t.queries.map(esc).join("\n")}</div>`;
+  if (t.type === "stepback") return `<h3>Step-back вопрос</h3><div class="code">${esc(t.stepback_question)}</div>`;
+  return "";
+}
+
+function renderCase(c) {
+  const p = c.patient, f = run(c, "faulty"), ctl = run(c, "control"), fx = run(c, "fixed"), dg = p.diagnosis;
+  let body = "";
+  bindVariant = "faulty";
+  switch (S.stage) {
+    case 0:
+      body = `<p class="lead">${esc(p.complaint)}</p>${srcSwitch(c, "faulty")}
+      <div class="card"><div class="label">Вопрос клиента</div><div class="q">${esc(f.question)}</div></div>
+      <div class="card"><div class="label">Ответ ассистента</div><div class="answer">${esc(f.answer)}</div></div>
+      <details><summary>О системе</summary><p>Ассистент операторов поддержки маркетплейса «Полка». Оператор пересылает вопрос клиента, ассистент ищет фрагменты в базе знаний (11 документов: возвраты, доставка, оплата, программа лояльности) и готовит ответ. Генерация и оценка — GigaChat.</p></details>`;
+      break;
+    case 1:
+      body = `<p class="lead">Что нашёл поиск и передал модели — в том порядке, в каком фрагменты попали в промпт.</p>${srcSwitch(c, "faulty")}
+      <div class="card"><div class="label">Вопрос</div><div class="q">${esc(f.question)}</div></div>${f.chunks.map((x) => chunkHTML(x)).join("")}`;
+      break;
+    case 2:
+      body = `<p class="lead">Метрики посчитаны на этом же прогоне по формулам RAGAS; судья — GigaChat.</p>${srcSwitch(c, "faulty")}${metricsHTML(f.metrics)}<h3>Детализация</h3>${metricDetails(f.metrics)}`;
+      break;
+    case 3:
+      body = `<p class="lead">Ещё один вопрос из логов той же системы, в той же конфигурации.</p>${srcSwitch(c, "control")}
+      <div class="card"><div class="label">Вопрос</div><div class="q">${esc(ctl.question)}</div></div>
+      <div class="card"><div class="label">Ответ ассистента</div><div class="answer">${esc(ctl.answer)}</div></div>
+      ${metricsHTML(ctl.metrics)}<h3>Чанки</h3>${ctl.chunks.map((x) => chunkHTML(x)).join("")}`;
+      break;
+    case 4:
+      body = `<p class="lead">Как устроен пайплайн, который дал этот ответ.</p>${cfgTable(f.config)}
+      <h3>Системный промпт</h3><div class="code">${esc(f.prompt.system)}</div>
+      <h3>Сообщение пользователя (как его видит модель)</h3><div class="code">${esc(f.prompt.user)}</div>`;
+      break;
+    case 5:
+      body = `<div class="row" style="margin:6px 0 16px"><span class="badge st-${dg.stage}">${STAGE_NAMES[dg.stage]}</span><b style="font-size:20px">${esc(dg.title)}</b></div>
+      <div class="card"><div class="label">Корень проблемы</div>${esc(dg.root_cause)}</div>
+      <div class="card"><div class="label">Улики</div><ul class="ev">${dg.evidence.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div>
+      <div class="two"><div class="metric"><div class="n">precision@k по LLM-судье</div><div class="v ${cls(f.metrics.precision_at_k)}">${fmt(f.metrics.precision_at_k)}</div><div class="h">то, что видно на дашборде</div></div>
+      <div class="metric"><div class="n">precision@k по эталонной разметке</div><div class="v ${cls(f.metrics.gold_precision_at_k)}">${fmt(f.metrics.gold_precision_at_k)}</div><div class="h">доля чанков с нужным фактом из нужного документа; эталонный фрагмент в выдаче — на ${dg.gold_rank_in_faulty}-м месте</div></div></div>
+      <h3>Чанки с эталонной разметкой</h3>${f.chunks.map((x) => chunkHTML(x, f.metrics.details.gold_hits)).join("")}`;
+      break;
+    case 6:
+      body = `<div class="card"><div class="label">Лечение · ${esc(dg.pattern)}</div>${esc(dg.fix)}</div>${srcSwitch(c, "fixed")}
+      <h3>Что поменяли в конфигурации</h3>${cfgTable(fx.config, f.config)}${transformHTML(fx.query_transform)}
+      <h3>Ответ после лечения</h3><div class="card"><div class="answer">${esc(fx.answer)}</div></div>
+      ${metricsHTML(fx.metrics, f.metrics)}<h3>Чанки</h3>${fx.chunks.map((x) => chunkHTML(x, fx.metrics.details.gold_hits)).join("")}
+      <h3>Детализация метрик</h3>${metricDetails(fx.metrics)}`;
+      break;
+  }
+  const steps = STAGES.map((s, i) => `<button data-s="${i}" class="${i === S.stage ? "active" : i < S.stage ? "done" : ""}">${i + 1}. ${s}</button>`).join("");
+  $("#main").innerHTML = `<h2>${esc(p.code)} · ${esc(p.name)}</h2><div class="stepper">${steps}</div>` + body;
+  document.querySelectorAll("[data-s]").forEach((b) => b.onclick = () => { S.stage = +b.dataset.s; render(); });
+  bindSrc(c);
+  const last = S.stage === STAGES.length - 1;
+  $("#nextbar").style.display = "flex";
+  $("#nextbar").innerHTML = `<button class="btn ghost" id="prev" ${S.stage === 0 ? "disabled" : ""}>← Назад</button>
+    <button class="btn" id="next" ${last ? "disabled" : ""}>${last ? "Конец разбора" : "Открыть: " + STAGES[S.stage + 1] + " →"}</button>
+    <span class="hint">стрелки ← → на клавиатуре</span>`;
+  $("#prev").onclick = () => step(-1); $("#next").onclick = () => step(1);
+}
+function step(d) { if (S.view === "lab" || S.view === "kb") return; S.stage = Math.max(0, Math.min(STAGES.length - 1, S.stage + d)); render(); window.scrollTo(0, 0); }
+document.addEventListener("keydown", (e) => { if (e.target.closest("textarea,input,select")) return; if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1); });
+
+function renderLab() {
+  $("#nextbar").style.display = "none";
+  const d = S.lab || (S.lab = { question: "Курьер не дозвонился и уехал, заказ так и не привезли. Что теперь делать?", config: { ...S.defaults } });
+  const sel = (k, opts) => `<div><label>${CFG_LABELS[k][0]}</label><select data-k="${k}">${opts.map((o) => `<option value="${o}" ${String(d.config[k]) === String(o) ? "selected" : ""}>${CFG_LABELS[k][1][o]}</option>`).join("")}</select></div>`;
+  $("#main").innerHTML = `<h2>Лаборатория</h2><p class="lead">Свой вопрос и своя конфигурация пайплайна. ${S.live ? "" : "<b>Нужен ключ GigaChat — в офлайн-режиме лаборатория недоступна.</b>"}</p>
+  <div class="card lab"><label>Вопрос клиента</label><textarea id="labq" rows="2">${esc(d.question)}</textarea>
+  <div class="grid">${sel("chunking", ["structural", "fixed"])}${sel("retrieval", ["dense", "hybrid"])}${sel("query_transform", ["none", "hyde", "fusion", "stepback"])}${sel("metadata_filter", ["true", "false"])}
+  ${sel("prompt", ["grounded", "loose", "custom"])}<div><label>top-k</label><input type="number" min="1" max="8" data-k="k" value="${d.config.k}"></div>
+  <div><label>Температура</label><input type="number" min="0" max="1.5" step="0.1" data-k="temperature" value="${d.config.temperature}"></div></div>
+  ${d.config.prompt === "custom" ? `<label>Системный промпт</label><textarea id="labprompt" rows="7">${esc(d.config.custom_prompt)}</textarea>
+  <div class="row" style="margin:8px 0 14px"><span class="small">Взять за основу:</span>
+  <button class="btn ghost" data-tpl="grounded">строго по фрагментам</button><button class="btn ghost" data-tpl="loose">«опирайся на свои знания»</button></div>` : ""}
+  <button class="btn" id="labrun" ${S.live ? "" : "disabled"}>Прогнать</button></div><div id="labout">${d.result ? labResult(d.result) : ""}</div>`;
+  document.querySelectorAll("[data-k]").forEach((el) => el.onchange = () => {
+    const k = el.dataset.k;
+    d.config[k] = k === "metadata_filter" ? el.value === "true" : (k === "k" || k === "temperature") ? +el.value : el.value;
+    if (k === "prompt") {
+      if (el.value === "custom" && !d.config.custom_prompt) d.config.custom_prompt = S.prompts.grounded;
+      renderLab();
+    }
+  });
+  if ($("#labprompt")) $("#labprompt").oninput = (e) => d.config.custom_prompt = e.target.value;
+  document.querySelectorAll("[data-tpl]").forEach((b) => b.onclick = () => { d.config.custom_prompt = S.prompts[b.dataset.tpl]; renderLab(); });
+  $("#labq").oninput = (e) => d.question = e.target.value;
+  $("#labrun").onclick = async () => {
+    const b = $("#labrun"); b.disabled = true; b.textContent = "Идёт прогон… (20–60 с)";
+    const r = await fetch("/api/lab", { method: "POST", body: JSON.stringify({ question: d.question, config: d.config }) });
+    const out = await r.json();
+    if (!r.ok) { $("#labout").innerHTML = `<div class="err">${esc(out.error)}</div>`; b.disabled = false; b.textContent = "Прогнать"; return; }
+    d.result = out; renderLab();
+  };
+}
+function labResult(r) {
+  return `<details><summary>Промпт, который ушёл в модель</summary><div class="label">Системный</div><div class="code">${esc(r.prompt.system)}</div>
+  <div class="label" style="margin-top:10px">Пользовательский</div><div class="code">${esc(r.prompt.user)}</div></details><h3>Ответ</h3><div class="card"><div class="answer">${esc(r.answer)}</div></div>${metricsHTML(r.metrics)}
+  ${transformHTML(r.query_transform)}<h3>Чанки</h3>${r.chunks.map((x) => chunkHTML(x)).join("")}<h3>Детализация метрик</h3>${metricDetails(r.metrics)}`;
+}
+
+async function renderKB() {
+  $("#nextbar").style.display = "none";
+  if (!S.corpus) { $("#main").innerHTML = "<p>Загрузка…</p>"; S.corpus = await (await fetch("/api/corpus")).json(); }
+  const kb = S.kb || (S.kb = { doc: S.corpus.docs[0].doc_id, mode: "text" });
+  const doc = S.corpus.docs.find((x) => x.doc_id === kb.doc);
+  const list = S.corpus.docs.map((x) => `<button data-doc="${x.doc_id}" class="${x.doc_id === kb.doc ? "active" : ""}">${esc(x.title)}
+    <small>${esc(x.file)} · v${esc(x.version)} · ${esc(x.status)}</small></button>`).join("");
+  const modes = [["text", "текст документа"], ["structural", "чанки: по разделам"], ["fixed", "чанки: окно 520 символов"]];
+  let body;
+  if (kb.mode === "text") body = `<div class="chunk"><pre>${esc(doc.body)}</pre></div>`;
+  else {
+    const cs = S.corpus.chunks[kb.mode].filter((c) => c.doc_id === kb.doc);
+    body = `<p class="small">${cs.length} чанк(ов). Так документ видит поиск при этой стратегии.</p>` + cs.map((c, i) => `<div class="chunk"><div class="meta"><span class="tag rank">${esc(c.chunk_id)}</span>
+      <span>${c.section ? "раздел «" + esc(c.section) + "»" : "символы " + c.start + "–" + c.end}</span><span>${c.text.length} симв.</span></div><pre>${esc(c.text)}</pre></div>`).join("");
+  }
+  const dates = doc.valid_to ? `${doc.valid_from} → ${doc.valid_to}` : `с ${doc.valid_from}`;
+  $("#main").innerHTML = `<h2>База знаний</h2><p class="lead">11 документов «Полки» — всё, что может найти поиск. Файлы лежат в rag-clinic-demo/corpus/.</p>
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:18px" class="kbgrid"><nav class="kbnav" style="border:1px solid var(--line);border-radius:14px;padding:8px;align-self:start">${list}</nav>
+  <div><h3 style="margin-top:0">${esc(doc.title)}</h3>
+  <div class="row" style="margin-bottom:12px"><span class="tag">${esc(doc.file)}</span><span class="tag">v${esc(doc.version)}</span><span class="tag">status: ${esc(doc.status)}</span><span class="tag">${dates}</span></div>
+  <div class="seg" style="margin-bottom:14px">${modes.map(([m, t]) => `<button data-mode="${m}" class="${kb.mode === m ? "on" : ""}">${t}</button>`).join("")}</div>${body}</div></div>`;
+  document.querySelectorAll("[data-doc]").forEach((b) => b.onclick = () => { kb.doc = b.dataset.doc; renderKB(); });
+  document.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => { kb.mode = b.dataset.mode; renderKB(); });
+}
+
+function render() { history.replaceState(null, "", location.search + "#" + S.view + (caseOf(S.view) ? "/" + (S.stage + 1) : "")); renderNav(); S.view === "lab" ? renderLab() : S.view === "kb" ? renderKB() : renderCase(caseOf(S.view)); }
+load();
+</script>
+</body>
+</html>

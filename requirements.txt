@@ -1,0 +1,2 @@
+gigachat>=0.2.3
+fastembed>=0.4  # только для EMBEDDINGS_BACKEND=local
